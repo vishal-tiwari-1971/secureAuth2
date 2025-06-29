@@ -93,7 +93,7 @@ export default function HomePage() {
               >
                 Login
               </Button>
-              <Link href="/dashboard">
+              <Link href="/login">
                 <Button
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg md:rounded-xl shadow-lg text-xs md:text-sm px-3 md:px-4"
@@ -144,7 +144,7 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start">
-                <Link href="/dashboard">
+                <Link href="/login">
                   <Button
                     size="lg"
                     className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 md:px-8 py-3 md:py-4 text-base md:text-lg shadow-lg w-full sm:w-auto"
@@ -273,7 +273,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
-              { icon: CreditCard, label: "Fund Transfer", href: "/dashboard", color: "blue" },
+              { icon: CreditCard, label: "Fund Transfer", href: "/login", color: "blue" },
               { icon: FileText, label: "Account Statement", color: "green" },
               { icon: Calculator, label: "EMI Calculator", color: "yellow" },
               { icon: MapPin, label: "Branch Locator", color: "purple" },
@@ -454,8 +454,11 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start">
-                <Link href="/dashboard">
-                  <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl px-6 md:px-8 py-3 text-base md:text-lg shadow-lg w-full sm:w-auto">
+                <Link href="/login">
+                  <Button
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 md:px-8 py-3 md:py-4 text-base md:text-lg shadow-lg w-full sm:w-auto"
+                  >
                     Access Net Banking
                   </Button>
                 </Link>
