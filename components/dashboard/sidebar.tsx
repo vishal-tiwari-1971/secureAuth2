@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/AuthContext"
 import {
   BarChart3,
   CreditCard,
@@ -14,6 +15,7 @@ import {
   ChevronRight,
   Building2,
   X,
+  LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -34,6 +36,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen = false, onClose, className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
+  const { logout, customerId } = useAuth()
 
   return (
     <>
@@ -124,9 +127,32 @@ export function Sidebar({ isOpen = false, onClose, className }: SidebarProps) {
           })}
         </nav>
 
+        {/* User Info and Logout */}
+        <div className="p-4 lg:p-6 border-t border-gray-200 flex-shrink-0">
+          {!collapsed && (
+            <div className="mb-4">
+              <div className="text-sm font-medium text-gray-900">Welcome back!</div>
+              <div className="text-xs text-gray-500">Customer ID: {customerId || "Loading..."}</div>
+            </div>
+          )}
+          
+          <Button
+            onClick={logout}
+            variant="outline"
+            size="sm"
+            className={cn(
+              "w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700",
+              collapsed && "lg:justify-center lg:px-3"
+            )}
+          >
+            <LogOut className={cn("h-4 w-4", !collapsed && "mr-2")} />
+            {!collapsed && "Sign Out"}
+          </Button>
+        </div>
+
         {/* Footer */}
         {!collapsed && (
-          <div className="p-4 lg:p-6 border-t border-gray-200 flex-shrink-0">
+          <div className="px-4 lg:px-6 pb-4 lg:pb-6">
             <div className="text-center">
               <div className="text-xs text-gray-500 mb-1">SecureBank Dashboard</div>
               <div className="text-xs text-gray-400">v2.0.1</div>

@@ -14,10 +14,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { Sidebar } from "@/components/dashboard/sidebar"
-import Link from "next/link"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function TopBar() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { logout, customerId } = useAuth()
+
+  // Get initials from customer ID
+  const getInitials = (id: string) => {
+    return id.slice(0, 2).toUpperCase()
+  }
 
   return (
     <>
@@ -50,11 +56,13 @@ export function TopBar() {
                 >
                   <Avatar className="h-8 w-8 md:h-9 md:w-9">
                     <AvatarImage src="/placeholder.svg?height=36&width=36" alt="User" />
-                    <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-sm">JD</AvatarFallback>
+                    <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-sm">
+                      {customerId ? getInitials(customerId) : "CB"}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden md:block">
-                    <div className="text-sm font-medium text-gray-900">John Doe</div>
-                    <div className="text-xs text-gray-500">Administrator</div>
+                    <div className="text-sm font-medium text-gray-900">Canara Bank</div>
+                    <div className="text-xs text-gray-500">Customer ID: {customerId || "Loading..."}</div>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
@@ -70,11 +78,12 @@ export function TopBar() {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/" className="flex items-center hover:bg-red-50 text-red-600 rounded-lg mx-1">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </Link>
+                <DropdownMenuItem 
+                  onClick={logout}
+                  className="flex items-center hover:bg-red-50 text-red-600 rounded-lg mx-1 cursor-pointer"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
