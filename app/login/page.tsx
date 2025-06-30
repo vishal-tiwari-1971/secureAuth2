@@ -230,8 +230,8 @@ export default function LoginPage() {
                 <Link href="#" className="text-blue-600 hover:text-blue-700 font-medium">
                   Forgot Password?
                 </Link>
-                <Link href="#" className="text-blue-600 hover:text-blue-700 font-medium">
-                  New User Registration
+                <Link href="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
+                  Sign Up
                 </Link>
               </div>
               

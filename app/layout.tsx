@@ -3,8 +3,8 @@ import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 
 export const metadata: Metadata = {
-  title: 'SecureAuth - Canara Bank Net Banking',
-  description: 'Secure online banking with advanced fraud detection',
+  title: 'v0 App',
+  description: 'Created with v0',
   generator: 'v0.dev',
 }
 
