@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { Building2, Shield, ArrowLeft, User, Mail, Lock } from "lucide-react"
 
 export default function SignUpPage() {
@@ -47,15 +49,9 @@ export default function SignUpPage() {
     setError("")
     setSuccess("")
     try {
-      const res = await fetch("/api/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || "Registration failed")
-      setSuccess("Registration successful! Redirecting to login...")
-      setTimeout(() => router.push("/login"), 2000)
+      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      setSuccess("Registration successful! Redirecting to dashboard...");
+      setTimeout(() => router.push("/dashboard"), 2000);
     } catch (err: any) {
       setError(err.message)
     } finally {

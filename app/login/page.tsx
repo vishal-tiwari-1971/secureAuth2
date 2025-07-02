@@ -9,14 +9,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Eye, EyeOff, Shield, ArrowLeft, Lock, User, Smartphone } from "lucide-react"
+import { Building2, Eye, EyeOff, Shield, ArrowLeft, Lock, User, Mail, Smartphone } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const [formData, setFormData] = useState({
     customerId: "",
+    email: "",
     password: "",
     rememberMe: false,
   })
@@ -24,6 +27,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [loginAttempts, setLoginAttempts] = useState(0)
+  const [isLocked, setIsLocked] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -31,7 +35,6 @@ export default function LoginPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value
     }))
-    // Clear error when user starts typing
     if (error) setError("")
   }
 
@@ -42,6 +45,10 @@ export default function LoginPage() {
   const validateForm = () => {
     if (!formData.customerId.trim()) {
       setError("Customer ID is required")
+      return false
+    }
+    if (!formData.email.trim()) {
+      setError("Email is required")
       return false
     }
     if (!formData.password.trim()) {
@@ -57,41 +64,31 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!validateForm()) return
+    if (isLocked) return
 
     setIsLoading(true)
     setError("")
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      // Firebase Auth: sign in with email and password
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password)
+      // Optionally, you can check customerId against your own database here
 
-    // Demo authentication logic
-    const demoCredentials = {
-      customerId: "123456789",
-      password: "password123"
-    }
+      // Use AuthContext to handle login (if you want to store customerId, pass it here)
+      login(userCredential.user.uid) // or pass more info as needed
 
-    if (formData.customerId === demoCredentials.customerId && 
-        formData.password === demoCredentials.password) {
-      // Successful login
-      setLoginAttempts(0)
-      
-      // Use AuthContext to handle login
-      login(formData.customerId)
-      
-      // Redirect to dashboard
+      setLoginAttempts(0) // Reset attempts on success
+      setIsLocked(false)
       router.push("/dashboard")
-    } else {
-      // Failed login
+    } catch (err: any) {
       const newAttempts = loginAttempts + 1
       setLoginAttempts(newAttempts)
-      
       if (newAttempts >= 3) {
         setError("Too many failed attempts. Please try again later.")
-        // In real app, you might lock the account temporarily
+        setIsLocked(true)
       } else {
-        setError(`Invalid credentials. ${3 - newAttempts} attempts remaining.`)
+        setError("Login failed. Check your email and password and try again. " + (3 - newAttempts) + " attempts remaining.")
       }
     }
 
@@ -146,6 +143,26 @@ export default function LoginPage() {
                     type="text"
                     placeholder="Enter your Customer ID"
                     value={formData.customerId}
+                    onChange={handleInputChange}
+                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Email Field */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
                     onChange={handleInputChange}
                     className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     disabled={isLoading}
@@ -211,7 +228,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium"
-                disabled={isLoading}
+                disabled={isLoading || isLocked}
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
@@ -259,17 +276,6 @@ export default function LoginPage() {
               <p className="text-blue-700">
                 Never share your login credentials. Canara Bank will never ask for your password via email or phone.
               </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="text-sm text-gray-700">
-            <p className="font-medium mb-2 text-gray-900">Demo Credentials (for testing):</p>
-            <div className="space-y-1 text-xs">
-              <p><span className="font-medium">Customer ID:</span> 123456789</p>
-              <p><span className="font-medium">Password:</span> password123</p>
             </div>
           </div>
         </div>
