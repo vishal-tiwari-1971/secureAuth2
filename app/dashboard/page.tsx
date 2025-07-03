@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { TopBar } from "@/components/dashboard/topbar"
@@ -13,9 +13,53 @@ import { SpendingGraph } from "@/components/dashboard/spending-graph"
 
 export default function DashboardPage() {
   const [showAnomalyAlert, setShowAnomalyAlert] = useState(true)
+  // Debug state for cursor tracking
+  const [lastBatchSize, setLastBatchSize] = useState(0)
+  const [lastResponse, setLastResponse] = useState<string>("")
+  const [cursorPos, setCursorPos] = useState<{x: number, y: number} | null>(null)
+  const bufferRef = useRef<{x: number, y: number, t: number}[]>([])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    function handleMove(e: MouseEvent) {
+      bufferRef.current.push({ x: e.clientX, y: e.clientY, t: Date.now() })
+      setCursorPos({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener('mousemove', handleMove)
+    timerRef.current = setInterval(async () => {
+      if (bufferRef.current.length > 0) {
+        const batch = [...bufferRef.current]
+        setLastBatchSize(batch.length)
+        bufferRef.current = []
+        console.log('Sending cursor batch:', batch)
+        try {
+          const res = await fetch('/api/cursor-track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: batch }),
+          })
+          const json = await res.json()
+          setLastResponse(JSON.stringify(json))
+        } catch (err) {
+          setLastResponse('Error sending data')
+        }
+      }
+    }, 2000)
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
 
   return (
     <ProtectedRoute>
+      {/* Debug floating box */}
+      <div style={{position:'fixed',bottom:16,right:16,zIndex:9999,background:'#fff',border:'1px solid #ddd',borderRadius:8,padding:12,boxShadow:'0 2px 8px #0001',fontSize:12}}>
+        <div><b>Cursor Debug</b></div>
+        <div>Last batch size: {lastBatchSize}</div>
+        <div>Last response: {lastResponse}</div>
+        <div>Cursor position: {cursorPos ? `${cursorPos.x}, ${cursorPos.y}` : 'N/A'}</div>
+      </div>
       <div className="flex h-screen bg-gray-50">
         {/* Desktop Sidebar - Fixed positioning */}
         <div className="hidden lg:flex lg:flex-shrink-0">
