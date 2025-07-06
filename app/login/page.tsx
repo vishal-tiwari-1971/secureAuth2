@@ -10,9 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Eye, EyeOff, Shield, ArrowLeft, Lock, User, Mail, Smartphone } from "lucide-react"
+import { AuthRedirect } from "@/components/AuthRedirect"
 import { useAuth } from "@/contexts/AuthContext"
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
   const router = useRouter()
@@ -66,21 +65,12 @@ export default function LoginPage() {
     e.preventDefault()
     if (!validateForm()) return
     if (isLocked) return
-
     setIsLoading(true)
     setError("")
-
     try {
-      // Firebase Auth: sign in with email and password
-      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password)
-      // Optionally, you can check customerId against your own database here
-
-      // Use AuthContext to handle login (if you want to store customerId, pass it here)
-      login(userCredential.user.uid) // or pass more info as needed
-
-      setLoginAttempts(0) // Reset attempts on success
+      await login(formData.email, formData.password)
+      setLoginAttempts(0)
       setIsLocked(false)
-      router.push("/dashboard")
     } catch (err: any) {
       const newAttempts = loginAttempts + 1
       setLoginAttempts(newAttempts)
@@ -88,14 +78,14 @@ export default function LoginPage() {
         setError("Too many failed attempts. Please try again later.")
         setIsLocked(true)
       } else {
-        setError("Login failed. Check your email and password and try again. " + (3 - newAttempts) + " attempts remaining.")
+        setError((err.message || "Login failed.") + ` ${3 - newAttempts} attempts remaining.`)
       }
     }
-
     setIsLoading(false)
   }
 
   return (
+    <AuthRedirect>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
@@ -281,5 +271,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </AuthRedirect>
   )
 } 

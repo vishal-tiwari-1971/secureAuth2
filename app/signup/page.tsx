@@ -8,9 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { Building2, Shield, ArrowLeft, User, Mail, Lock } from "lucide-react"
+import { AuthRedirect } from "@/components/AuthRedirect"
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -49,9 +48,20 @@ export default function SignUpPage() {
     setError("")
     setSuccess("")
     try {
-      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      setSuccess("Registration successful! Redirecting to dashboard...");
-      setTimeout(() => router.push("/dashboard"), 2000);
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          customerId: formData.customerId,
+          password: formData.password,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || "Signup failed")
+      setSuccess("Registration successful! Redirecting to dashboard...")
+      setTimeout(() => router.push("/dashboard"), 2000)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -60,13 +70,14 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/login" className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Login
-          </Link>
+    <AuthRedirect>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <Link href="/login" className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Login
+            </Link>
           <div className="flex items-center justify-center space-x-3 mb-4">
             <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
               <Building2 className="h-6 w-6 text-white" />
@@ -140,6 +151,7 @@ export default function SignUpPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </AuthRedirect>
   )
 } 

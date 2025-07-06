@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation"
 interface AuthContextType {
   isLoggedIn: boolean
   customerId: string | null
-  login: (customerId: string) => void
-  logout: () => void
+  user: any | null
   isLoading: boolean
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+  refreshSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -16,43 +18,72 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [customerId, setCustomerId] = useState<string | null>(null)
+  const [user, setUser] = useState<any | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    // Check if user is logged in on component mount (client-side only)
-    const loginStatus = localStorage.getItem("isLoggedIn")
-    const storedCustomerId = localStorage.getItem("customerId")
-    
-    if (loginStatus === "true" && storedCustomerId) {
+  const checkSession = async () => {
+    setIsLoading(true)
+    try {
+      const res = await fetch("/api/auth/validate-token")
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setUser(data.user)
+      setCustomerId(data.user.customerId)
       setIsLoggedIn(true)
-      setCustomerId(storedCustomerId)
+    } catch {
+      setUser(null)
+      setCustomerId(null)
+      setIsLoggedIn(false)
+    } finally {
+      setIsLoading(false)
     }
-    
-    setIsLoading(false)
-  }, [])
-
-  const login = (customerId: string) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("isLoggedIn", "true")
-      localStorage.setItem("customerId", customerId)
-    }
-    setIsLoggedIn(true)
-    setCustomerId(customerId)
   }
 
-  const logout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem("isLoggedIn")
-      localStorage.removeItem("customerId")
+  useEffect(() => {
+    checkSession()
+  }, [])
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true)
+    try {
+      const res = await fetch("/api/auth/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      if (!res.ok) throw new Error("Login failed")
+      await checkSession()
+      router.push("/dashboard")
+    } catch (err) {
+      setUser(null)
+      setCustomerId(null)
+      setIsLoggedIn(false)
+      throw err
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoggedIn(false)
-    setCustomerId(null)
-    router.push("/")
+  }
+
+  const logout = async () => {
+    setIsLoading(true)
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      setUser(null)
+      setCustomerId(null)
+      setIsLoggedIn(false)
+      router.push("/")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const refreshSession = async () => {
+    await checkSession()
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, customerId, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isLoggedIn, customerId, user, isLoading, login, logout, refreshSession }}>
       {children}
     </AuthContext.Provider>
   )

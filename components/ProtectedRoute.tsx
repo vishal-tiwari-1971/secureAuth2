@@ -9,37 +9,22 @@ import { Shield, Lock, Loader2 } from "lucide-react"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
+  redirectTo?: string
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export const ProtectedRoute = ({ children, redirectTo = '/login' }: ProtectedRouteProps) => {
   const { isLoggedIn, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
-      router.push("/login")
+      router.push(redirectTo)
     }
-  }, [isLoggedIn, isLoading, router])
+  }, [isLoggedIn, isLoading, router, redirectTo])
 
   // Show loading state while checking authentication
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl border-0">
-          <CardHeader className="text-center pb-6">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-            </div>
-            <CardTitle className="text-xl font-bold text-gray-900">Loading...</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 text-center">
-              Checking authentication status...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    return null; // Do not show any card or loading UI
   }
 
   // Show access denied if not logged in

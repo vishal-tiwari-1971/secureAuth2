@@ -10,6 +10,7 @@ import { AnomalyAlert } from "@/components/dashboard/anomaly-alert"
 import { MapVisualization } from "@/components/dashboard/map-visualization"
 import { AuthActivity } from "@/components/dashboard/auth-activity"
 import { SpendingGraph } from "@/components/dashboard/spending-graph"
+import { SessionInfo } from "@/components/SessionInfo"
 
 export default function DashboardPage() {
   const [showAnomalyAlert, setShowAnomalyAlert] = useState(true)
@@ -104,6 +105,11 @@ export default function DashboardPage() {
               {/* Section F: Spending Graph */}
               <div className="md:col-span-1">
                 <SpendingGraph />
+              </div>
+
+              {/* Section G: Session Information */}
+              <div className="md:col-span-1">
+                <SessionInfo />
               </div>
             </div>
           </main>
