@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+
 import {
   Building2,
   CreditCard,
@@ -86,13 +87,15 @@ export default function HomePage() {
             </nav>
 
             <div className="flex items-center space-x-2 md:space-x-3">
+              <Link href="/signup">
               <Button
                 variant="outline"
                 size="sm"
                 className="border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg md:rounded-xl text-xs md:text-sm px-3 md:px-4"
               >
-                Login
+                  Sign Up
               </Button>
+              </Link>
               <Link href="/login">
                 <Button
                   size="sm"
@@ -150,6 +153,15 @@ export default function HomePage() {
                     className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 md:px-8 py-3 md:py-4 text-base md:text-lg shadow-lg w-full sm:w-auto"
                   >
                     Access Net Banking
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-xl px-6 md:px-8 py-3 md:py-4 text-base md:text-lg w-full sm:w-auto"
+                  >
+                    Create Account
                   </Button>
                 </Link>
                 <Button
@@ -460,6 +472,15 @@ export default function HomePage() {
                     className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 md:px-8 py-3 md:py-4 text-base md:text-lg shadow-lg w-full sm:w-auto"
                   >
                     Access Net Banking
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-xl px-6 md:px-8 py-3 md:py-4 text-base md:text-lg w-full sm:w-auto"
+                  >
+                    Create Account
                   </Button>
                 </Link>
                 <Button
