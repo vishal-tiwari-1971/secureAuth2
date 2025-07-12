@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createUser, generateJWT, createSession } from '@/lib/auth'
+import { authenticateUser, generateJWT, createSession } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { customerId, email, password, name, phone, profileImage } = body
+    const { customerId, password } = body
 
     // Validate required fields
-    if (!customerId || !email || !password) {
+    if (!customerId || !password) {
       return NextResponse.json(
-        { error: 'Customer ID, email, and password are required' },
+        { error: 'Customer ID and password are required' },
         { status: 400 }
       )
     }
 
-    // Validate customer ID format (you can customize this)
+    // Validate customer ID format
     if (!/^\d{10}$/.test(customerId)) {
       return NextResponse.json(
         { error: 'Customer ID must be exactly 10 digits' },
@@ -22,32 +22,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'Please enter a valid email address' },
-        { status: 400 }
-      )
-    }
-
-    // Validate password strength
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'Password must be at least 8 characters long' },
-        { status: 400 }
-      )
-    }
-
-    // Create user
-    const user = await createUser({
-      customerId,
-      email,
-      password,
-      name,
-      phone,
-      profileImage
-    })
+    // Authenticate user
+    const user = await authenticateUser(customerId, password)
 
     // Generate JWT token
     const token = generateJWT({
@@ -62,16 +38,16 @@ export async function POST(req: NextRequest) {
     // Set HTTP-only cookie
     const response = NextResponse.json(
       {
-        message: 'User created successfully',
+        message: 'Login successful',
         user: {
           id: user.id,
           customerId: user.customerId,
           email: user.email,
-          name: user.name,
-          profileImage: user.profileImage
+          firstName: user.firstName,
+          lastName: user.lastName
         }
       },
-      { status: 201 }
+      { status: 200 }
     )
 
     // Set secure cookie
@@ -85,13 +61,13 @@ export async function POST(req: NextRequest) {
     return response
 
   } catch (error) {
-    console.error('Signup error:', error)
+    console.error('Login error:', error)
     
     if (error instanceof Error) {
-      if (error.message.includes('already exists')) {
+      if (error.message.includes('Invalid customer ID or password')) {
         return NextResponse.json(
-          { error: error.message },
-          { status: 409 }
+          { error: 'Invalid customer ID or password' },
+          { status: 401 }
         )
       }
     }

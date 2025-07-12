@@ -21,7 +21,7 @@ const AuthRedirect = ({ children, redirectTo = "/dashboard" }: AuthRedirectProps
       const timer = setTimeout(() => {
         setShowBanner(false);
         router.push(redirectTo);
-      }, 1500);
+      }, 1000); // Reduced from 1500ms to 1000ms
       return () => clearTimeout(timer);
     }
   }, [isLoggedIn, isLoading, router, redirectTo]);

@@ -10,19 +10,23 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Shield, ArrowLeft, User, Mail, Lock } from "lucide-react"
 import { AuthRedirect } from "@/components/AuthRedirect"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function SignUpPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     customerId: "",
     password: "",
     confirmPassword: "",
+    profileImage: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [imageUploading, setImageUploading] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -41,6 +45,29 @@ export default function SignUpPage() {
     return true
   }
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageUploading(true)
+    try {
+      const formDataImg = new FormData()
+      formDataImg.append("file", file)
+      formDataImg.append("upload_preset", "secureAuth")
+      
+      const res = await fetch("https://api.cloudinary.com/v1_1/dtebmtl6w/image/upload", {
+        method: "POST",
+        body: formDataImg,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error?.message || "Upload failed")
+      setFormData(prev => ({ ...prev, profileImage: data.secure_url }))
+    } catch (err) {
+      setError("Image upload failed. Please try again.")
+    } finally {
+      setImageUploading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
@@ -56,12 +83,16 @@ export default function SignUpPage() {
           email: formData.email,
           customerId: formData.customerId,
           password: formData.password,
+          profileImage: formData.profileImage,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || "Signup failed")
-      setSuccess("Registration successful! Redirecting to dashboard...")
-      setTimeout(() => router.push("/dashboard"), 2000)
+      
+      // After successful signup, automatically log in
+      setSuccess("Registration successful! Logging you in...")
+      await login(formData.customerId, formData.password)
+      router.push("/dashboard")
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -133,6 +164,14 @@ export default function SignUpPage() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input id="confirmPassword" name="confirmPassword" type="password" placeholder="Re-enter your password" value={formData.confirmPassword} onChange={handleInputChange} className="pl-10" disabled={isLoading} />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profileImage">Profile Image</Label>
+                <Input id="profileImage" name="profileImage" type="file" accept="image/*" onChange={handleImageChange} disabled={isLoading || imageUploading} />
+                {imageUploading && <p className="text-xs text-blue-600">Uploading...</p>}
+                {formData.profileImage && (
+                  <img src={formData.profileImage} alt="Profile Preview" className="h-16 w-16 rounded-full mt-2 object-cover border" />
+                )}
               </div>
               {error && (
                 <Alert variant="destructive" className="border-red-200 bg-red-50">

@@ -18,7 +18,6 @@ export default function LoginPage() {
   const { login } = useAuth()
   const [formData, setFormData] = useState({
     customerId: "",
-    email: "",
     password: "",
     rememberMe: false,
   })
@@ -46,10 +45,6 @@ export default function LoginPage() {
       setError("Customer ID is required")
       return false
     }
-    if (!formData.email.trim()) {
-      setError("Email is required")
-      return false
-    }
     if (!formData.password.trim()) {
       setError("Password is required")
       return false
@@ -68,7 +63,7 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
     try {
-      await login(formData.email, formData.password)
+      await login(formData.customerId, formData.password)
       setLoginAttempts(0)
       setIsLocked(false)
     } catch (err: any) {
@@ -133,26 +128,6 @@ export default function LoginPage() {
                     type="text"
                     placeholder="Enter your Customer ID"
                     value={formData.customerId}
-                    onChange={handleInputChange}
-                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-
-              {/* Email Field */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={formData.email}
                     onChange={handleInputChange}
                     className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     disabled={isLoading}
