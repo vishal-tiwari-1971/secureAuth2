@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext"
 
 export function TopBar() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { logout, customerId } = useAuth()
+  const { logout, customerId, user } = useAuth()
 
   // Get initials from customer ID
   const getInitials = (id: string) => {
@@ -55,13 +55,14 @@ export function TopBar() {
                   className="flex items-center space-x-2 md:space-x-3 hover:bg-gray-50 rounded-xl px-2 md:px-4 py-2"
                 >
                   <Avatar className="h-8 w-8 md:h-9 md:w-9">
-                    <AvatarImage src="/placeholder.svg?height=36&width=36" alt="User" />
+                    <AvatarImage src={user?.profileImage || "/placeholder.svg"} alt="User" />
                     <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-sm">
                       {customerId ? getInitials(customerId) : "CB"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden md:block">
-                    <div className="text-sm font-medium text-gray-900">Canara Bank</div>
+                  <div className="text-sm font-medium text-gray-900">Canara Bank</div>
+                    <div className="text-sm font-medium text-gray-600">{user?.name || 'User'}</div>
                     <div className="text-xs text-gray-500">Customer ID: {customerId || "Loading..."}</div>
                   </div>
                 </Button>
