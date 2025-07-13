@@ -4,7 +4,7 @@ import { authenticateUser, generateJWT, createSession } from '@/lib/auth'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { customerId, password } = body
+    const { customerId, password, typingPattern, retryAttempt = 0 } = body
 
     // Validate required fields
     if (!customerId || !password) {
@@ -25,6 +25,69 @@ export async function POST(req: NextRequest) {
     // Authenticate user
     const user = await authenticateUser(customerId, password)
 
+    // Verify typing pattern if provided and user has one
+    if (typingPattern && typingPattern.pattern && typingPattern.text) {
+      try {
+        // Use the manual verification endpoint
+        const verificationResponse = await fetch(`${req.nextUrl.origin}/api/auth/typing-pattern/verify-manual`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerId,
+            pattern: typingPattern.pattern,
+            text: typingPattern.text
+          })
+        })
+
+        const verificationResult = await verificationResponse.json()
+
+        if (!verificationResult.success || verificationResult.score < 0.5) {
+          console.log('Typing pattern verification failed:', verificationResult)
+          
+          // Check if user has retry attempts left
+          const maxRetries = 3
+          const attemptsLeft = maxRetries - (retryAttempt + 1);
+          
+          console.log('Typing pattern retry debug:', {
+            retryAttempt,
+            maxRetries,
+            attemptsLeft,
+            willRetry: attemptsLeft >= 0
+          })
+          
+          if (attemptsLeft >= 0) {
+            return NextResponse.json(
+              { 
+                error: 'Typing pattern verification failed. Please try typing more consistently.',
+                retryAttempt: retryAttempt + 1,
+                attemptsLeft,
+                canRetry: true,
+                score: verificationResult.score,
+                message: `Score: ${(verificationResult.score * 100).toFixed(1)}%. Try typing more consistently.`
+              },
+              { status: 401 }
+            )
+          } else {
+            return NextResponse.json(
+              { 
+                error: 'Typing pattern verification failed after multiple attempts. Please try again later.',
+                canRetry: false,
+                score: verificationResult.score
+              },
+              { status: 401 }
+            )
+          }
+        }
+
+        console.log('Typing pattern verification successful:', verificationResult)
+      } catch (verificationError) {
+        console.error('Verification error:', verificationError)
+        // Continue with login even if verification fails
+      }
+    }
+
     // Generate JWT token
     const token = generateJWT({
       userId: user.id,
@@ -43,8 +106,7 @@ export async function POST(req: NextRequest) {
           id: user.id,
           customerId: user.customerId,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName
+          name: user.name
         }
       },
       { status: 200 }

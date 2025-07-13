@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Shield, ArrowLeft, User, Mail, Lock } from "lucide-react"
+import { Building2, Shield, ArrowLeft, User, Mail, Lock, Fingerprint } from "lucide-react"
 import { AuthRedirect } from "@/components/AuthRedirect"
 import { useAuth } from "@/contexts/AuthContext"
+import { ManualTypingPattern } from "@/components/ManualTypingPattern"
+import { TypingGuide } from "@/components/TypingGuide"
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -27,6 +29,12 @@ export default function SignUpPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [imageUploading, setImageUploading] = useState(false)
+  const [showTypingPattern, setShowTypingPattern] = useState(false)
+  const [typingPattern, setTypingPattern] = useState<{
+    pattern: string
+    quality: number
+    text: string
+  } | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -43,6 +51,20 @@ export default function SignUpPage() {
     if (formData.password.length < 6) return setError("Password must be at least 6 characters")
     if (formData.password !== formData.confirmPassword) return setError("Passwords do not match")
     return true
+  }
+
+  const handleTypingPatternComplete = (pattern: any) => {
+    setTypingPattern({ 
+      pattern: JSON.stringify(pattern), 
+      quality: pattern.quality || 0.5, 
+      text: pattern.text 
+    })
+    setShowTypingPattern(false)
+    setSuccess("Typing pattern recorded successfully!")
+  }
+
+  const handleTypingPatternError = (error: string) => {
+    setError(`Typing pattern error: ${error}`)
   }
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +106,7 @@ export default function SignUpPage() {
           customerId: formData.customerId,
           password: formData.password,
           profileImage: formData.profileImage,
+          typingPattern: typingPattern,
         }),
       })
       const data = await res.json()
@@ -172,6 +195,52 @@ export default function SignUpPage() {
                 {formData.profileImage && (
                   <img src={formData.profileImage} alt="Profile Preview" className="h-16 w-16 rounded-full mt-2 object-cover border" />
                 )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Fingerprint className="h-4 w-4" />
+                  Typing Pattern (Optional)
+                </Label>
+                <div className="space-y-2">
+                  {!showTypingPattern && !typingPattern && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowTypingPattern(true)}
+                      className="w-full"
+                      disabled={isLoading}
+                    >
+                      <Fingerprint className="h-4 w-4 mr-2" />
+                      Set Up Typing Pattern
+                    </Button>
+                  )}
+                  
+                  {showTypingPattern && (
+                    <>
+                      <TypingGuide className="mb-4" />
+                      <ManualTypingPattern
+                        mode="enroll"
+                        onComplete={handleTypingPatternComplete}
+                        onError={handleTypingPatternError}
+                        placeholder="Type your name and a short sentence to create your unique typing pattern..."
+                        className="mb-4"
+                      />
+                    </>
+                  )}
+                  
+                  {typingPattern && !showTypingPattern && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <Fingerprint className="h-4 w-4" />
+                        <span className="text-sm font-medium">Typing pattern recorded</span>
+                      </div>
+                      <p className="text-xs text-green-600 mt-1">
+                        Quality score: {(typingPattern.quality * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
               {error && (
                 <Alert variant="destructive" className="border-red-200 bg-red-50">

@@ -4,7 +4,7 @@ import { createUser, generateJWT, createSession } from '@/lib/auth'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { customerId, email, password, name, phone, profileImage } = body
+    const { customerId, email, password, name, phone, profileImage, typingPattern } = body
 
     // Validate required fields
     if (!customerId || !email || !password) {
@@ -56,6 +56,27 @@ export async function POST(req: NextRequest) {
       email: user.email
     })
 
+    // Save typing pattern if provided
+    if (typingPattern && typingPattern.pattern && typingPattern.text) {
+      const { prisma } = await import('@/lib/prisma')
+      
+      // Save pattern to database
+      await prisma.typingPattern.create({
+        data: {
+          userId: user.id,
+          pattern: typingPattern.pattern, // Already JSON string from frontend
+          quality: typingPattern.quality || 0.5,
+          type: 'manual'
+        }
+      })
+
+      // Update user to indicate they have a typing pattern
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { hasTypingPattern: true }
+      })
+    }
+
     // Create session in database
     await createSession(user.id, token)
 
@@ -68,7 +89,8 @@ export async function POST(req: NextRequest) {
           customerId: user.customerId,
           email: user.email,
           name: user.name,
-          profileImage: user.profileImage
+          profileImage: user.profileImage,
+          hasTypingPattern: typingPattern ? true : false
         }
       },
       { status: 201 }
