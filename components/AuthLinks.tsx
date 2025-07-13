@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Link } from 'next/link';
+import Link from 'next/link';
 import { User, LogOut } from 'lucide-react';
 
 interface AuthLinksProps {
@@ -33,9 +33,9 @@ const AuthLinks = ({ variant = 'header', className = '' }: AuthLinksProps) => {
           </div>
           <div className="hidden sm:block">
             <p className="text-sm font-medium text-gray-900">
-              {user.displayName || user.email?.split('@')[0] || 'User'}
+              {user.name || user.customerId || 'User'}
             </p>
-            <p className="text-xs text-gray-500">Net Banking</p>
+            <p className="text-xs text-gray-500">Customer ID: {user.customerId}</p>
           </div>
         </div>
         <Link href="/dashboard">

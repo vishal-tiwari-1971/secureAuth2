@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  customerId   String   @unique @map("customer_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String   // <-- Use this instead of firstName/lastName
+  phone        String?
+  accountType  String   @default("savings") @map("account_type")
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  profileImage String? @map("profile_image")
+  hasTypingPattern Boolean @default(false) @map("has_typing_pattern")
+
+  // Relations
+  sessions     Session[]
+  transactions Transaction[]
+  cursorData   CursorData[]
+  typingPatterns TypingPattern[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model TypingPattern {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  pattern   String   // Pattern data (JSON string)
+  quality   Float    // Pattern quality score (0-1)
+  type      String   @default("manual") // "manual" or "typingdna"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("typing_patterns")
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  type        String   // "credit" | "debit" | "transfer"
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  recipientId String?  @map("recipient_id")
+  status      String   @default("pending") // "pending" | "completed" | "failed"
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model CursorData {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  x         Int
+  y         Int
+  timestamp DateTime @default(now())
+  sessionId String?  @map("session_id")
+  page      String?
+  action    String?  // "move", "click", "scroll", etc.
+  cursorArray Json?  @map("cursor_array") // Store array of cursor positions
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("cursor_data")
+} 

@@ -9,16 +9,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Eye, EyeOff, Shield, ArrowLeft, Lock, User, Mail, Smartphone } from "lucide-react"
+import { Building2, Eye, EyeOff, Shield, ArrowLeft, Lock, User, Mail, Smartphone, Fingerprint } from "lucide-react"
 import { AuthRedirect } from "@/components/AuthRedirect"
 import { useAuth } from "@/contexts/AuthContext"
+import { ManualTypingPattern } from "@/components/ManualTypingPattern"
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const [formData, setFormData] = useState({
     customerId: "",
-    email: "",
     password: "",
     rememberMe: false,
   })
@@ -27,6 +27,16 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isLocked, setIsLocked] = useState(false)
+  const [showTypingPattern, setShowTypingPattern] = useState(false)
+  const [typingPattern, setTypingPattern] = useState<{
+    pattern: string
+    quality: number
+    text: string
+  } | null>(null)
+  const [retryAttempt, setRetryAttempt] = useState(0)
+  const [canRetry, setCanRetry] = useState(false)
+  const [attemptsLeft, setAttemptsLeft] = useState(3)
+  const [lastScore, setLastScore] = useState<number | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -46,10 +56,6 @@ export default function LoginPage() {
       setError("Customer ID is required")
       return false
     }
-    if (!formData.email.trim()) {
-      setError("Email is required")
-      return false
-    }
     if (!formData.password.trim()) {
       setError("Password is required")
       return false
@@ -61,24 +67,68 @@ export default function LoginPage() {
     return true
   }
 
+  const handleTypingPatternComplete = (pattern: any) => {
+    setTypingPattern({ 
+      pattern: JSON.stringify(pattern), 
+      quality: pattern.quality || 0.5, 
+      text: pattern.text 
+    })
+    setShowTypingPattern(false)
+    // Reset retry state on successful pattern capture
+    setRetryAttempt(0)
+    setCanRetry(false)
+    setAttemptsLeft(3)
+    setLastScore(null)
+  }
+
+  const handleTypingPatternError = (error: string) => {
+    setError(`Typing pattern error: ${error}`)
+  }
+
+  const resetTypingPatternState = () => {
+    setTypingPattern(null)
+    setShowTypingPattern(false)
+    setRetryAttempt(0)
+    setCanRetry(false)
+    setAttemptsLeft(3)
+    setLastScore(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
     if (isLocked) return
     setIsLoading(true)
     setError("")
+    
     try {
-      await login(formData.email, formData.password)
+      await login(formData.customerId, formData.password, typingPattern || undefined, retryAttempt)
       setLoginAttempts(0)
       setIsLocked(false)
+      resetTypingPatternState()
     } catch (err: any) {
-      const newAttempts = loginAttempts + 1
-      setLoginAttempts(newAttempts)
-      if (newAttempts >= 3) {
-        setError("Too many failed attempts. Please try again later.")
-        setIsLocked(true)
+      // Check if this is a typing pattern retry error
+      if (err.response?.data?.canRetry) {
+        console.log('Retry error data:', err.response.data)
+        setCanRetry(true)
+        setRetryAttempt(err.response.data.retryAttempt || 0)
+        setAttemptsLeft(err.response.data.attemptsLeft || 0)
+        setLastScore(err.response.data.score || null)
+        setError(err.response.data.message || err.message || "Typing pattern verification failed.")
+        setShowTypingPattern(true) // Show typing pattern again for retry
+        setTypingPattern(null) // Clear previous pattern
       } else {
-        setError((err.message || "Login failed.") + ` ${3 - newAttempts} attempts remaining.`)
+        // Regular login error
+        const newAttempts = loginAttempts + 1
+        setLoginAttempts(newAttempts)
+        if (newAttempts >= 3) {
+          setError("Too many failed attempts. Please try again later.")
+          setIsLocked(true)
+        } else {
+          setError((err.message || "Login failed.") + ` ${3 - newAttempts} attempts remaining.`)
+        }
+        // Reset typing pattern retry state
+        resetTypingPatternState()
       }
     }
     setIsLoading(false)
@@ -140,26 +190,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Email Field */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-
               {/* Password Field */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">
@@ -203,6 +233,71 @@ export default function LoginPage() {
                 <Label htmlFor="rememberMe" className="text-sm text-gray-600">
                   Remember my Customer ID
                 </Label>
+              </div>
+
+              {/* Typing Pattern Verification */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-sm font-medium">
+                  <Fingerprint className="h-4 w-4" />
+                  Typing Pattern Verification (Optional)
+                </Label>
+                <div className="space-y-2">
+                  {!showTypingPattern && !typingPattern && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowTypingPattern(true)}
+                      className="w-full"
+                      disabled={isLoading}
+                    >
+                      <Fingerprint className="h-4 w-4 mr-2" />
+                      Verify Typing Pattern
+                    </Button>
+                  )}
+                  
+                  {showTypingPattern && (
+                    <div className="space-y-3">
+                      {canRetry && (
+                        <Alert className="border-orange-200 bg-orange-50">
+                          <AlertDescription className="text-orange-800">
+                            <div className="flex items-center justify-between">
+                              <span>Typing pattern verification failed</span>
+                              <span className="text-sm font-medium">
+                                {attemptsLeft} attempts left
+                              </span>
+                            </div>
+                            {lastScore && (
+                              <p className="text-xs mt-1">
+                                Last score: {(lastScore * 100).toFixed(1)}%. Try typing more consistently.
+                              </p>
+                            )}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      <ManualTypingPattern
+                        mode="verify"
+                        customerId={formData.customerId}
+                        onComplete={handleTypingPatternComplete}
+                        onError={handleTypingPatternError}
+                        placeholder="Type the same text you used during signup to verify your typing pattern..."
+                        className="mb-4"
+                      />
+                    </div>
+                  )}
+                  
+                  {typingPattern && !showTypingPattern && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <Fingerprint className="h-4 w-4" />
+                        <span className="text-sm font-medium">Typing pattern verified</span>
+                      </div>
+                      <p className="text-xs text-green-600 mt-1">
+                        Quality score: {(typingPattern.quality * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Error Alert */}

@@ -1,45 +1,126 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-import jwt from 'jsonwebtoken';
-
-const USERS_FILE = path.join(process.cwd(), 'users.json');
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
-const JWT_EXPIRES_IN = '24h';
-
-async function readUsers() {
-  try {
-    const data = await fs.readFile(USERS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-async function writeUsers(users: any[]) {
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-}
+import { NextRequest, NextResponse } from 'next/server'
+import { createUser, generateJWT, createSession } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
-  const { name, email, customerId, password } = await req.json();
-  if (!name || !email || !customerId || !password) {
-    return NextResponse.json({ message: 'All fields are required.' }, { status: 400 });
+  try {
+    const body = await req.json()
+    const { customerId, email, password, name, phone, profileImage, typingPattern } = body
+
+    // Validate required fields
+    if (!customerId || !email || !password) {
+      return NextResponse.json(
+        { error: 'Customer ID, email, and password are required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate customer ID format (you can customize this)
+    if (!/^\d{10}$/.test(customerId)) {
+      return NextResponse.json(
+        { error: 'Customer ID must be exactly 10 digits' },
+        { status: 400 }
+      )
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address' },
+        { status: 400 }
+      )
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters long' },
+        { status: 400 }
+      )
+    }
+
+    // Create user
+    const user = await createUser({
+      customerId,
+      email,
+      password,
+      name,
+      phone,
+      profileImage
+    })
+
+    // Generate JWT token
+    const token = generateJWT({
+      userId: user.id,
+      customerId: user.customerId,
+      email: user.email
+    })
+
+    // Save typing pattern if provided
+    if (typingPattern && typingPattern.pattern && typingPattern.text) {
+      const { prisma } = await import('@/lib/prisma')
+      
+      // Save pattern to database
+      await prisma.typingPattern.create({
+        data: {
+          userId: user.id,
+          pattern: typingPattern.pattern, // Already JSON string from frontend
+          quality: typingPattern.quality || 0.5,
+          type: 'manual'
+        }
+      })
+
+      // Update user to indicate they have a typing pattern
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { hasTypingPattern: true }
+      })
+    }
+
+    // Create session in database
+    await createSession(user.id, token)
+
+    // Set HTTP-only cookie
+    const response = NextResponse.json(
+      {
+        message: 'User created successfully',
+        user: {
+          id: user.id,
+          customerId: user.customerId,
+          email: user.email,
+          name: user.name,
+          profileImage: user.profileImage,
+          hasTypingPattern: typingPattern ? true : false
+        }
+      },
+      { status: 201 }
+    )
+
+    // Set secure cookie
+    response.cookies.set('auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 // 24 hours
+    })
+
+    return response
+
+  } catch (error) {
+    console.error('Signup error:', error)
+    
+    if (error instanceof Error) {
+      if (error.message.includes('already exists')) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 409 }
+        )
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
-  if (password.length < 6) {
-    return NextResponse.json({ message: 'Password must be at least 6 characters.' }, { status: 400 });
-  }
-  const users = await readUsers();
-  if (users.find((u: any) => u.customerId === customerId)) {
-    return NextResponse.json({ message: 'Customer ID already exists.' }, { status: 400 });
-  }
-  if (users.find((u: any) => u.email === email)) {
-    return NextResponse.json({ message: 'Email already registered.' }, { status: 400 });
-  }
-  const newUser = { name, email, customerId, password };
-  users.push(newUser);
-  await writeUsers(users);
-  const token = jwt.sign({ email, customerId, name }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  const res = NextResponse.json({ message: 'Registration successful.' });
-  res.cookies.set('token', token, { httpOnly: true, sameSite: 'lax', maxAge: 60 * 60 * 24 });
-  return res;
 } 

@@ -18,36 +18,80 @@ export default function DashboardPage() {
   const [lastBatchSize, setLastBatchSize] = useState(0)
   const [lastResponse, setLastResponse] = useState<string>("")
   const [cursorPos, setCursorPos] = useState<{x: number, y: number} | null>(null)
-  const bufferRef = useRef<{x: number, y: number, t: number}[]>([])
+  const bufferRef = useRef<{x: number, y: number, t: number, action?: string}[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    function handleMove(e: MouseEvent) {
-      bufferRef.current.push({ x: e.clientX, y: e.clientY, t: Date.now() })
-      setCursorPos({ x: e.clientX, y: e.clientY })
+  const sendCursorData = async (dataArray: {x: number, y: number, action?: string, timestamp: number}[]) => {
+    try {
+      console.log('Sending cursor batch:', dataArray.length, 'positions')
+      console.log('First position:', dataArray[0])
+      console.log('Last position:', dataArray[dataArray.length - 1])
+      
+      const response = await fetch('/api/cursor-track', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: dataArray,
+          page: 'dashboard',
+          sessionId: Date.now().toString()
+        }),
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        setLastResponse(`Sent ${dataArray.length} cursor events in batch`)
+        console.log('API response:', result)
+      } else {
+        setLastResponse('Failed to send data')
+        console.error('API error:', response.status)
+      }
+    } catch (error) {
+      console.error('Error sending cursor data:', error)
+      setLastResponse('Error sending data')
     }
-    window.addEventListener('mousemove', handleMove)
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    const newPos = { x: e.clientX, y: e.clientY }
+    setCursorPos(newPos)
+    
+    // Add to buffer (don't send immediately)
+    bufferRef.current.push({ 
+      x: e.clientX, 
+      y: e.clientY, 
+      t: Date.now(),
+      action: 'move'
+    })
+    setLastBatchSize(bufferRef.current.length)
+  }
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove)
+    
+    // Send batched data every 5 seconds
     timerRef.current = setInterval(async () => {
       if (bufferRef.current.length > 0) {
-        const batch = [...bufferRef.current]
-        setLastBatchSize(batch.length)
+        // Convert buffer to data array
+        const dataToSend = bufferRef.current.map(item => ({
+          x: item.x,
+          y: item.y,
+          action: item.action || 'move',
+          timestamp: item.t
+        }))
+        
+        // Send all collected data as one array
+        await sendCursorData(dataToSend)
+        
+        // Clear buffer after sending
         bufferRef.current = []
-        console.log('Sending cursor batch:', batch)
-        try {
-          const res = await fetch('/api/cursor-track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: batch }),
-          })
-          const json = await res.json()
-          setLastResponse(JSON.stringify(json))
-        } catch (err) {
-          setLastResponse('Error sending data')
-        }
+        setLastBatchSize(0)
       }
-    }, 2000)
+    }, 5000) // Collect for 5 seconds, then send all at once
+    
     return () => {
-      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mousemove', handleMouseMove)
       if (timerRef.current) clearInterval(timerRef.current)
     }
   }, [])

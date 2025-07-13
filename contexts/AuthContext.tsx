@@ -8,7 +8,11 @@ interface AuthContextType {
   customerId: string | null
   user: any | null
   isLoading: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (customerId: string, password: string, typingPattern?: {
+    pattern: string
+    quality: number
+    text: string
+  }, retryAttempt?: number) => Promise<void>
   logout: () => Promise<void>
   refreshSession: () => Promise<void>
 }
@@ -28,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/auth/validate-token")
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setUser(data.user)
+      setUser(data.user); // data.user should have .name
       setCustomerId(data.user.customerId)
       setIsLoggedIn(true)
     } catch {
@@ -44,15 +48,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession()
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (customerId: string, password: string, typingPattern?: {
+    pattern: string
+    quality: number
+    text: string
+  }, retryAttempt?: number) => {
     setIsLoading(true)
     try {
-      const res = await fetch("/api/auth/create-session", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ customerId, password, typingPattern, retryAttempt }),
       })
-      if (!res.ok) throw new Error("Login failed")
+      
+      if (!res.ok) {
+        const errorData = await res.json()
+        const error = new Error(errorData.error || "Login failed")
+        ;(error as any).response = { data: errorData }
+        throw error
+      }
+      
       await checkSession()
       router.push("/dashboard")
     } catch (err) {
