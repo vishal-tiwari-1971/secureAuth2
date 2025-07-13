@@ -8,7 +8,11 @@ interface AuthContextType {
   customerId: string | null
   user: any | null
   isLoading: boolean
-  login: (customerId: string, password: string) => Promise<void>
+  login: (customerId: string, password: string, typingPattern?: {
+    pattern: string
+    quality: number
+    text: string
+  }, retryAttempt?: number) => Promise<void>
   logout: () => Promise<void>
   refreshSession: () => Promise<void>
 }
@@ -44,15 +48,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession()
   }, [])
 
-  const login = async (customerId: string, password: string) => {
+  const login = async (customerId: string, password: string, typingPattern?: {
+    pattern: string
+    quality: number
+    text: string
+  }, retryAttempt?: number) => {
     setIsLoading(true)
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId, password }),
+        body: JSON.stringify({ customerId, password, typingPattern, retryAttempt }),
       })
-      if (!res.ok) throw new Error("Login failed")
+      
+      if (!res.ok) {
+        const errorData = await res.json()
+        const error = new Error(errorData.error || "Login failed")
+        ;(error as any).response = { data: errorData }
+        throw error
+      }
+      
       await checkSession()
       router.push("/dashboard")
     } catch (err) {
