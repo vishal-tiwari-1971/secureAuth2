@@ -65,12 +65,18 @@ model TypingPattern {
 model Transaction {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
+  customerId  String?  @map("customer_id") // Now optional for migration
   type        String   // "credit" | "debit" | "transfer"
   amount      Decimal  @db.Decimal(10, 2)
   description String?
   recipientId String?  @map("recipient_id")
   status      String   @default("pending") // "pending" | "completed" | "failed"
   createdAt   DateTime @default(now()) @map("created_at")
+  ip          String   // Now required
+  location    String   // Now required
+  device      String?  // New: Device name (e.g., iPhone 14, MacBook)
+  lat         Float?   // Latitude (optional)
+  lng         Float?   // Longitude (optional)
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Send, DollarSign } from "lucide-react"
+import { Send } from "lucide-react"
 
 const receivers = [
   { id: "1", name: "Alice Johnson", account: "****1234" },
@@ -16,29 +16,71 @@ const receivers = [
 ]
 
 export function SendMoneyCard() {
-  const [amount, setAmount] = useState("")
-  const [receiver, setReceiver] = useState("")
-  const [simulationResult, setSimulationResult] = useState("")
+  const [amount, setAmount] = useState("");
+  const [receiverUpi, setReceiverUpi] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSimulate = () => {
-    if (!amount || !receiver) {
-      setSimulationResult("Please fill in all fields")
-      return
-    }
-
-    const selectedReceiver = receivers.find((r) => r.id === receiver)
-    const isHighAmount = Number.parseFloat(amount) > 1000
-
-    if (isHighAmount) {
-      setSimulationResult(
-        `⚠️ High-value transaction of $${amount} to ${selectedReceiver?.name} flagged for review. Additional verification required.`,
-      )
-    } else {
-      setSimulationResult(
-        `✅ Transaction of $${amount} to ${selectedReceiver?.name} processed successfully. No anomalies detected.`,
-      )
-    }
+  // Auto-detect device info
+  function getDeviceInfo() {
+    const ua = navigator.userAgent;
+    if (/iPhone/.test(ua)) return "iPhone";
+    if (/iPad/.test(ua)) return "iPad";
+    if (/Android/.test(ua)) return "Android";
+    if (/Macintosh/.test(ua)) return "MacBook";
+    if (/Windows/.test(ua)) return "Windows PC";
+    if (/Linux/.test(ua)) return "Linux";
+    // fallback to browser name
+    if (/Chrome/.test(ua)) return "Chrome Browser";
+    if (/Firefox/.test(ua)) return "Firefox Browser";
+    if (/Safari/.test(ua)) return "Safari Browser";
+    return "Unknown Device";
   }
+
+  function getLocation() {
+    return new Promise<{ lat: number | null; lng: number | null }>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ lat: null, lng: null });
+      } else {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve({ lat: null, lng: null })
+        );
+      }
+    });
+  }
+
+  const handleSend = async () => {
+    setResult("");
+    if (!amount || !receiverUpi) {
+      setResult("Please fill in all fields");
+      return;
+    }
+    setLoading(true);
+    try {
+      const device = getDeviceInfo();
+      const { lat, lng } = await getLocation();
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, upiId: receiverUpi, device, lat, lng }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult(data.error || "Transaction failed");
+      } else {
+        setResult(
+          `✅ Transaction of ₹${data.transaction.amount} to ${data.transaction.recipientId} processed successfully. Status: ${data.transaction.status}`
+        );
+        setAmount("");
+        setReceiverUpi("");
+      }
+    } catch (err) {
+      setResult("Network or server error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Card className="h-full bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
@@ -49,7 +91,7 @@ export function SendMoneyCard() {
           </div>
           <div className="min-w-0">
             <div className="text-base md:text-lg font-semibold text-gray-900">Send Money</div>
-            <div className="text-xs md:text-sm text-gray-500">Simulate transactions</div>
+            <div className="text-xs md:text-sm text-gray-500">Send a UPI transaction</div>
           </div>
         </CardTitle>
       </CardHeader>
@@ -58,8 +100,8 @@ export function SendMoneyCard() {
           <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
             Amount
           </Label>
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="relative flex items-center">
+            <span className="absolute left-3 inset-y-0 flex items-center h-full text-gray-400 text-base md:text-lg select-none">₹</span>
             <Input
               id="amount"
               type="number"
@@ -67,43 +109,40 @@ export function SendMoneyCard() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg md:rounded-xl text-sm md:text-base"
+              disabled={loading}
             />
           </div>
         </div>
 
         <div className="space-y-2 md:space-y-3">
-          <Label htmlFor="receiver" className="text-sm font-medium text-gray-700">
-            Receiver
+          <Label htmlFor="receiver-upi" className="text-sm font-medium text-gray-700">
+            Receiver UPI ID
           </Label>
-          <Select value={receiver} onValueChange={setReceiver}>
-            <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg md:rounded-xl text-sm md:text-base">
-              <SelectValue placeholder="Select receiver" />
-            </SelectTrigger>
-            <SelectContent className="rounded-lg md:rounded-xl">
-              {receivers.map((person) => (
-                <SelectItem key={person.id} value={person.id} className="rounded-lg text-sm md:text-base">
-                  <span className="block truncate">
-                    {person.name} ({person.account})
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            id="receiver-upi"
+            type="text"
+            placeholder="e.g. receiver@upi"
+            value={receiverUpi}
+            onChange={(e) => setReceiverUpi(e.target.value)}
+            className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg md:rounded-xl text-sm md:text-base"
+            disabled={loading}
+          />
         </div>
 
         <Button
-          onClick={handleSimulate}
+          onClick={handleSend}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg md:rounded-xl py-2.5 md:py-3 font-medium text-sm md:text-base"
+          disabled={loading}
         >
-          Simulate Transaction
+          {loading ? "Processing..." : "Send Money"}
         </Button>
 
-        {simulationResult && (
+        {result && (
           <div className="p-3 md:p-4 rounded-lg md:rounded-xl bg-gray-50 border border-gray-200">
-            <p className="text-xs md:text-sm text-gray-700 break-words">{simulationResult}</p>
+            <p className="text-xs md:text-sm text-gray-700 break-words">{result}</p>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
