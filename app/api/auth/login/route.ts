@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser, generateJWT, createSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
+  let customerId: string | undefined;
   try {
     const body = await req.json()
-    const { customerId, password, typingPattern, retryAttempt = 0 } = body
+    customerId = body.customerId;
+    const { password, typingPattern, retryAttempt = 0 } = body
 
     // Validate required fields
     if (!customerId || !password) {
@@ -24,6 +27,32 @@ export async function POST(req: NextRequest) {
 
     // Authenticate user
     const user = await authenticateUser(customerId, password)
+
+    // Log successful login attempt
+    try {
+      const ip = req.headers.get('x-forwarded-for') || '';
+      let location = 'Unknown';
+      if (ip && ip !== '::1' && ip !== '127.0.0.1') {
+        try {
+          const geoRes = await fetch(`https://ipapi.co/${ip}/json/`);
+          const geo = await geoRes.json();
+          if (geo && geo.city && geo.country) {
+            location = `${geo.city}, ${geo.country}`;
+          }
+        } catch {}
+      }
+      await prisma.authActivity.create({
+        data: {
+          customerId: user.customerId,
+          userId: user.id,
+          type: 'Login Attempt',
+          status: 'Success',
+          device: req.headers.get('user-agent') || 'Unknown Device',
+          ip,
+          location,
+        }
+      });
+    } catch (e) { /* ignore logging errors */ }
 
     // Verify typing pattern if provided and user has one
     if (typingPattern && typingPattern.pattern && typingPattern.text) {
@@ -125,8 +154,53 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Login error:', error)
     
+    // DEBUG: Log error message and type
+    console.log('[DEBUG] Entered catch block in login route. Error:', error, 'Type:', typeof error, 'Message:', error instanceof Error ? error.message : 'N/A');
     if (error instanceof Error) {
       if (error.message.includes('Invalid customer ID or password')) {
+        // Only log if customerId exists
+        try {
+          const user = await prisma.user.findUnique({ where: { customerId } });
+          console.log('[DEBUG] Looked up user for failed login:', user);
+          if (user) {
+            const ip = req.headers.get('x-forwarded-for') || '';
+            let location = 'Unknown';
+            if (ip && ip !== '::1' && ip !== '127.0.0.1') {
+              try {
+                const geoRes = await fetch(`https://ipapi.co/${ip}/json/`);
+                const geo = await geoRes.json();
+                if (geo && geo.city && geo.country) {
+                  location = `${geo.city}, ${geo.country}`;
+                }
+              } catch {}
+            }
+            const failedData = {
+              customerId,
+              userId: user.id,
+              type: 'Login Attempt',
+              status: 'Failed',
+              device: req.headers.get('user-agent') || 'Unknown Device',
+              ip,
+              location,
+            };
+            console.log('[AuthActivity] Logging failed login attempt:', failedData);
+            try {
+              await prisma.authActivity.create({ data: failedData });
+              console.log('[AuthActivity] Failed login attempt written successfully');
+              // Also create a notification for the user
+              await prisma.notification.create({
+                data: {
+                  userId: user.id,
+                  type: 'alert',
+                  message: `Failed login attempt detected for your account (Customer ID: ${customerId}). If this wasn't you, please reset your password.`,
+                  read: false,
+                }
+              });
+            } catch (writeErr) {
+              console.error('[AuthActivity] Error writing failed login attempt:', writeErr);
+            }
+          }
+        } catch (e) { /* ignore logging errors */ }
         return NextResponse.json(
           { error: 'Invalid customer ID or password' },
           { status: 401 }

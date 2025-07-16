@@ -14,25 +14,63 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { TrendingUp } from "lucide-react"
+import { useEffect, useState } from "react"
 
-const spendingData = [
-  { name: "Food & Dining", value: 35, color: "#3B82F6" },
-  { name: "Shopping", value: 25, color: "#10B981" },
-  { name: "Transportation", value: 15, color: "#F59E0B" },
-  { name: "Entertainment", value: 12, color: "#EF4444" },
-  { name: "Bills", value: 13, color: "#8B5CF6" },
-]
-
-const trendData = [
-  { month: "Jan", amount: 2400, normal: true },
-  { month: "Feb", amount: 2100, normal: true },
-  { month: "Mar", amount: 2800, normal: true },
-  { month: "Apr", amount: 3200, normal: false },
-  { month: "May", amount: 2600, normal: true },
-  { month: "Jun", amount: 2900, normal: true },
-]
+const categories = [
+  { name: "Food & Dining", color: "#3B82F6" },
+  { name: "Shopping", color: "#10B981" },
+  { name: "Transportation", color: "#F59E0B" },
+  { name: "Entertainment", color: "#EF4444" },
+  { name: "Bills", color: "#8B5CF6" },
+];
 
 export function SpendingGraph() {
+  const [spendingData, setSpendingData] = useState(categories.map(c => ({ name: c.name, value: 0, color: c.color })));
+  const [trendData, setTrendData] = useState([]); // <-- dynamic trend data
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTransactions() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/transactions");
+        const data = await res.json();
+        if (res.ok && data.transactions) {
+          // Group by category for pie chart
+          const sums = {};
+          for (const cat of categories) sums[cat.name] = 0;
+          for (const tx of data.transactions) {
+            if (tx.category && sums.hasOwnProperty(tx.category)) {
+              sums[tx.category] += Number(tx.amount);
+            }
+          }
+          setSpendingData(categories.map(c => ({ name: c.name, value: sums[c.name], color: c.color })));
+
+          // Group by day for trend line chart
+          const daySums = {};
+          for (const tx of data.transactions) {
+            if (!tx.createdAt) continue;
+            const date = new Date(tx.createdAt);
+            // Format as YYYY-MM-DD
+            const day = date.toISOString().slice(0, 10);
+            if (!daySums[day]) daySums[day] = 0;
+            daySums[day] += Number(tx.amount);
+          }
+          // Convert to array sorted by day
+          const trendArr = Object.entries(daySums)
+            .map(([day, amount]) => ({ day, amount }))
+            .sort((a, b) => a.day.localeCompare(b.day));
+          setTrendData(trendArr);
+        }
+      } catch (e) {
+        // fallback: do nothing
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTransactions();
+  }, []);
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-3 md:pb-4">
@@ -64,7 +102,7 @@ export function SpendingGraph() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value}%`, "Percentage"]} />
+                  <Tooltip formatter={(value) => [`₹${value}`, "Amount"]} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -72,20 +110,14 @@ export function SpendingGraph() {
 
           {/* Line Chart */}
           <div>
-            <h4 className="text-xs md:text-sm font-medium mb-2 md:mb-3">Monthly Trend</h4>
+            <h4 className="text-xs md:text-sm font-medium mb-2 md:mb-3">Spending Trend (per day)</h4>
             <div className="h-[100px] md:h-[120px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip
-                    formatter={(value, name, props) => [
-                      `$${value}`,
-                      "Amount",
-                      props.payload.normal ? "Normal spending" : "Above average",
-                    ]}
-                  />
+                  <Tooltip formatter={(value) => [`₹${value}`, "Amount"]} labelFormatter={label => `Date: ${label}`} />
                   <Line
                     type="monotone"
                     dataKey="amount"
@@ -106,7 +138,7 @@ export function SpendingGraph() {
                   className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: item.color }}
                 ></div>
-                <span className="truncate">{item.name}</span>
+                <span className="truncate">{item.name} ({item.value === 0 ? '0' : `₹${item.value}`})</span>
               </div>
             ))}
           </div>

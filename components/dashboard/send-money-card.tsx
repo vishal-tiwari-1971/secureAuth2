@@ -15,9 +15,18 @@ const receivers = [
   { id: "4", name: "David Wilson", account: "****3456" },
 ]
 
+const categories = [
+  { label: 'Food & Dining', value: 'Food & Dining' },
+  { label: 'Shopping', value: 'Shopping' },
+  { label: 'Transportation', value: 'Transportation' },
+  { label: 'Entertainment', value: 'Entertainment' },
+  { label: 'Bills', value: 'Bills' },
+];
+
 export function SendMoneyCard() {
   const [amount, setAmount] = useState("");
   const [receiverUpi, setReceiverUpi] = useState("");
+  const [category, setCategory] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -52,7 +61,7 @@ export function SendMoneyCard() {
 
   const handleSend = async () => {
     setResult("");
-    if (!amount || !receiverUpi) {
+    if (!amount || !receiverUpi || !category) {
       setResult("Please fill in all fields");
       return;
     }
@@ -63,7 +72,7 @@ export function SendMoneyCard() {
       const res = await fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, upiId: receiverUpi, device, lat, lng }),
+        body: JSON.stringify({ amount, upiId: receiverUpi, device, lat, lng, category }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -74,6 +83,7 @@ export function SendMoneyCard() {
         );
         setAmount("");
         setReceiverUpi("");
+        setCategory("");
       }
     } catch (err) {
       setResult("Network or server error");
@@ -127,6 +137,24 @@ export function SendMoneyCard() {
             className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg md:rounded-xl text-sm md:text-base"
             disabled={loading}
           />
+        </div>
+
+        <div className="space-y-2 md:space-y-3">
+          <Label htmlFor="category" className="text-sm font-medium text-gray-700">
+            Category
+          </Label>
+          <Select value={category} onValueChange={setCategory} disabled={loading}>
+            <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg md:rounded-xl text-sm md:text-base">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((cat) => (
+                <SelectItem key={cat.value} value={cat.value}>
+                  {cat.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Button
