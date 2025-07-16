@@ -157,15 +157,15 @@ export default function MapLeafletClient() {
 
   return (
     <Card className="h-full">
-        <CardHeader className="pb-3 md:pb-4">
-          <CardTitle className="flex items-center space-x-2 md:space-x-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-purple-100 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
-              <MapPin className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
-            </div>
-            <span className="text-base md:text-lg font-semibold">Transaction Map</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardHeader className="pb-3 md:pb-4">
+        <CardTitle className="flex items-center space-x-2 md:space-x-3">
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-purple-100 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
+            <MapPin className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
+          </div>
+          <span className="text-base md:text-lg font-semibold">Transaction Map</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
           <div className="h-[300px] w-full rounded-lg overflow-hidden relative">
             {/* Zoom controls */}
             <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -205,9 +205,9 @@ export default function MapLeafletClient() {
                 -
               </button>
             </div>
-            {loading ? (
-              <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
-            ) : (
+          {loading ? (
+            <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
+          ) : (
               <>
                 <div ref={mapRef} style={{ width: '100%', height: 300 }} />
                 <div
@@ -264,12 +264,12 @@ export default function MapLeafletClient() {
                     <span className="text-gray-600">{tx.location || 'Unknown City'}</span>
                     <span className="text-gray-500">Lat: {tx.lat}</span>
                     <span className="text-gray-500">Lng: {tx.lng}</span>
-                  </div>
+                      </div>
                 ))}
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardContent>
+    </Card>
   );
-}
+} 

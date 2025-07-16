@@ -45,7 +45,7 @@ export function AuthActivity() {
               <div className="text-center text-gray-400 py-8">No auth activity found.</div>
             ) : (
               activities.map((activity) => (
-                <div key={activity.id} className="p-3 rounded-lg border bg-white">
+              <div key={activity.id} className="p-3 rounded-lg border bg-white">
                   <div className="flex items-center space-x-2 min-w-0 flex-1">
                     {activity.device && (activity.device.includes("iPhone") || activity.device.includes("Android")) ? (
                       <Smartphone className="h-3 w-3 md:h-4 md:w-4 text-gray-500 flex-shrink-0" />

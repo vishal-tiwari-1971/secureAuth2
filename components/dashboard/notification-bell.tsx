@@ -70,9 +70,9 @@ export function NotificationBell() {
             ) : (
               notifications.map((notification) => (
                 <div key={notification.id} className={`p-3 rounded-lg border bg-gray-50 ${notification.type === 'alert' ? 'border-red-300' : notification.type === 'success' ? 'border-green-300' : ''}`}>
-                  <p className="text-xs md:text-sm font-medium">{notification.message}</p>
+                <p className="text-xs md:text-sm font-medium">{notification.message}</p>
                   <p className="text-xs text-gray-500 mt-1">{notification.createdAt ? new Date(notification.createdAt).toLocaleString() : ''}</p>
-                </div>
+              </div>
               ))
             )}
           </div>

@@ -91,7 +91,7 @@ model CursorData {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("cursor_data")
-}
+} 
 
 model modelInput {
   id                 Int      @id @default(autoincrement())
