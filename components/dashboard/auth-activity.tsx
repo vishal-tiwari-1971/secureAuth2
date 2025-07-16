@@ -4,53 +4,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Shield, Smartphone, Monitor, CheckCircle, XCircle } from "lucide-react"
-
-const authActivities = [
-  {
-    id: 1,
-    type: "Login",
-    ip: "192.168.1.100",
-    device: "iPhone 14 Pro",
-    location: "New York, NY",
-    mfa: true,
-    status: "Success",
-    time: "5 min ago",
-  },
-  {
-    id: 2,
-    type: "Login Attempt",
-    ip: "203.45.67.89",
-    device: "Unknown Device",
-    location: "Unknown Location",
-    mfa: false,
-    status: "Failed",
-    time: "2 hours ago",
-  },
-  {
-    id: 3,
-    type: "Password Change",
-    ip: "192.168.1.100",
-    device: "MacBook Pro",
-    location: "New York, NY",
-    mfa: true,
-    status: "Success",
-    time: "1 day ago",
-  },
-  {
-    id: 4,
-    type: "Login",
-    ip: "10.0.0.50",
-    device: "Chrome Browser",
-    location: "San Francisco, CA",
-    mfa: true,
-    status: "Success",
-    time: "2 days ago",
-  },
-]
+import { useEffect, useState } from "react"
 
 export function AuthActivity() {
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchActivities() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/auth-activity");
+        const data = await res.json();
+        setActivities(data.activities || []);
+      } catch {
+        setActivities([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchActivities();
+  }, []);
+
   return (
-    <Card className="h-full">
+    <Card className="h-full bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col">
       <CardHeader className="pb-3 md:pb-4">
         <CardTitle className="flex items-center space-x-2 md:space-x-3">
           <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-100 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
@@ -60,13 +37,17 @@ export function AuthActivity() {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[300px] md:h-[350px] px-4 md:px-6">
-          <div className="space-y-2 md:space-y-3 pb-4">
-            {authActivities.map((activity) => (
+        <ScrollArea className="h-[300px] md:h-[400px] px-4 md:px-6">
+          <div className="space-y-2 md:space-y-3">
+            {loading ? (
+              <div className="text-center text-gray-400 py-8">Loading...</div>
+            ) : activities.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">No auth activity found.</div>
+            ) : (
+              activities.map((activity) => (
               <div key={activity.id} className="p-3 rounded-lg border bg-white">
-                <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center space-x-2 min-w-0 flex-1">
-                    {activity.device.includes("iPhone") || activity.device.includes("Android") ? (
+                    {activity.device && (activity.device.includes("iPhone") || activity.device.includes("Android")) ? (
                       <Smartphone className="h-3 w-3 md:h-4 md:w-4 text-gray-500 flex-shrink-0" />
                     ) : (
                       <Monitor className="h-3 w-3 md:h-4 md:w-4 text-gray-500 flex-shrink-0" />
@@ -86,19 +67,15 @@ export function AuthActivity() {
                       {activity.status}
                     </Badge>
                   </div>
-                </div>
-
-                <div className="space-y-1 text-xs text-gray-500">
-                  <p className="truncate">IP: {activity.ip}</p>
-                  <p className="truncate">Device: {activity.device}</p>
-                  <p className="truncate">Location: {activity.location}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">MFA: {activity.mfa ? "✅ Used" : "❌ Not Used"}</span>
-                    <span className="text-xs">{activity.time}</span>
+                  <div className="space-y-1 text-xs text-gray-500 mt-1">
+                    <p className="truncate">IP: {activity.ip || "-"}</p>
+                    <p className="truncate">Device: {activity.device || "-"}</p>
+                    <p className="truncate">Location: {activity.location || "-"}</p>
+                    <span className="text-xs">{activity.createdAt ? new Date(activity.createdAt).toLocaleString() : "-"}</span>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </ScrollArea>
       </CardContent>

@@ -9,10 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Eye, EyeOff, Shield, ArrowLeft, Lock, User, Mail, Smartphone, Fingerprint } from "lucide-react"
+import { Building2, Eye, EyeOff, Shield, ArrowLeft, Lock, User, Mail, Smartphone } from "lucide-react"
 import { AuthRedirect } from "@/components/AuthRedirect"
 import { useAuth } from "@/contexts/AuthContext"
-import { ManualTypingPattern } from "@/components/ManualTypingPattern"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -27,16 +26,9 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isLocked, setIsLocked] = useState(false)
-  const [showTypingPattern, setShowTypingPattern] = useState(false)
-  const [typingPattern, setTypingPattern] = useState<{
-    pattern: string
-    quality: number
-    text: string
-  } | null>(null)
-  const [retryAttempt, setRetryAttempt] = useState(0)
-  const [canRetry, setCanRetry] = useState(false)
   const [attemptsLeft, setAttemptsLeft] = useState(3)
   const [lastScore, setLastScore] = useState<number | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{customerId?: string, password?: string}>({});
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -52,46 +44,25 @@ export default function LoginPage() {
   }
 
   const validateForm = () => {
+    let valid = true;
+    const errors: {customerId?: string, password?: string} = {};
     if (!formData.customerId.trim()) {
-      setError("Customer ID is required")
-      return false
+      errors.customerId = "Customer ID is required";
+      valid = false;
+    } else if (!/^\d{10}$/.test(formData.customerId.trim())) {
+      errors.customerId = "Customer ID must be exactly 10 digits";
+      valid = false;
     }
     if (!formData.password.trim()) {
-      setError("Password is required")
-      return false
+      errors.password = "Password is required";
+      valid = false;
+    } else if (formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+      valid = false;
     }
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters")
-      return false
-    }
-    return true
-  }
-
-  const handleTypingPatternComplete = (pattern: any) => {
-    setTypingPattern({ 
-      pattern: JSON.stringify(pattern), 
-      quality: pattern.quality || 0.5, 
-      text: pattern.text 
-    })
-    setShowTypingPattern(false)
-    // Reset retry state on successful pattern capture
-    setRetryAttempt(0)
-    setCanRetry(false)
-    setAttemptsLeft(3)
-    setLastScore(null)
-  }
-
-  const handleTypingPatternError = (error: string) => {
-    setError(`Typing pattern error: ${error}`)
-  }
-
-  const resetTypingPatternState = () => {
-    setTypingPattern(null)
-    setShowTypingPattern(false)
-    setRetryAttempt(0)
-    setCanRetry(false)
-    setAttemptsLeft(3)
-    setLastScore(null)
+    setFieldErrors(errors);
+    if (!valid) setError("Please correct the highlighted fields below.");
+    return valid;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,33 +73,18 @@ export default function LoginPage() {
     setError("")
     
     try {
-      await login(formData.customerId, formData.password, typingPattern || undefined, retryAttempt)
+      await login(formData.customerId, formData.password)
       setLoginAttempts(0)
       setIsLocked(false)
-      resetTypingPatternState()
     } catch (err: any) {
-      // Check if this is a typing pattern retry error
-      if (err.response?.data?.canRetry) {
-        console.log('Retry error data:', err.response.data)
-        setCanRetry(true)
-        setRetryAttempt(err.response.data.retryAttempt || 0)
-        setAttemptsLeft(err.response.data.attemptsLeft || 0)
-        setLastScore(err.response.data.score || null)
-        setError(err.response.data.message || err.message || "Typing pattern verification failed.")
-        setShowTypingPattern(true) // Show typing pattern again for retry
-        setTypingPattern(null) // Clear previous pattern
+      // Regular login error
+      const newAttempts = loginAttempts + 1
+      setLoginAttempts(newAttempts)
+      if (newAttempts >= 3) {
+        setError("Too many failed attempts. Please try again later.")
+        setIsLocked(true)
       } else {
-        // Regular login error
-        const newAttempts = loginAttempts + 1
-        setLoginAttempts(newAttempts)
-        if (newAttempts >= 3) {
-          setError("Too many failed attempts. Please try again later.")
-          setIsLocked(true)
-        } else {
-          setError((err.message || "Login failed.") + ` ${3 - newAttempts} attempts remaining.`)
-        }
-        // Reset typing pattern retry state
-        resetTypingPatternState()
+        setError((err.message || "Login failed.") + ` ${3 - newAttempts} attempts remaining.`)
       }
     }
     setIsLoading(false)
@@ -184,9 +140,10 @@ export default function LoginPage() {
                     placeholder="Enter your Customer ID"
                     value={formData.customerId}
                     onChange={handleInputChange}
-                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className={`pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.customerId ? 'border-red-500 ring-red-200' : ''}`}
                     disabled={isLoading}
                   />
+                  {fieldErrors.customerId && <p className="text-xs text-red-600 mt-1">{fieldErrors.customerId}</p>}
                 </div>
               </div>
 
@@ -204,9 +161,10 @@ export default function LoginPage() {
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="pl-10 pr-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className={`pl-10 pr-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.password ? 'border-red-500 ring-red-200' : ''}`}
                     disabled={isLoading}
                   />
+                  {fieldErrors.password && <p className="text-xs text-red-600 mt-1">{fieldErrors.password}</p>}
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -235,76 +193,11 @@ export default function LoginPage() {
                 </Label>
               </div>
 
-              {/* Typing Pattern Verification */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-sm font-medium">
-                  <Fingerprint className="h-4 w-4" />
-                  Typing Pattern Verification (Optional)
-                </Label>
-                <div className="space-y-2">
-                  {!showTypingPattern && !typingPattern && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowTypingPattern(true)}
-                      className="w-full"
-                      disabled={isLoading}
-                    >
-                      <Fingerprint className="h-4 w-4 mr-2" />
-                      Verify Typing Pattern
-                    </Button>
-                  )}
-                  
-                  {showTypingPattern && (
-                    <div className="space-y-3">
-                      {canRetry && (
-                        <Alert className="border-orange-200 bg-orange-50">
-                          <AlertDescription className="text-orange-800">
-                            <div className="flex items-center justify-between">
-                              <span>Typing pattern verification failed</span>
-                              <span className="text-sm font-medium">
-                                {attemptsLeft} attempts left
-                              </span>
-                            </div>
-                            {lastScore && (
-                              <p className="text-xs mt-1">
-                                Last score: {(lastScore * 100).toFixed(1)}%. Try typing more consistently.
-                              </p>
-                            )}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
-                      <ManualTypingPattern
-                        mode="verify"
-                        customerId={formData.customerId}
-                        onComplete={handleTypingPatternComplete}
-                        onError={handleTypingPatternError}
-                        placeholder="Type the same text you used during signup to verify your typing pattern..."
-                        className="mb-4"
-                      />
-                    </div>
-                  )}
-                  
-                  {typingPattern && !showTypingPattern && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <Fingerprint className="h-4 w-4" />
-                        <span className="text-sm font-medium">Typing pattern verified</span>
-                      </div>
-                      <p className="text-xs text-green-600 mt-1">
-                        Quality score: {(typingPattern.quality * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Error Alert */}
               {error && (
                 <Alert variant="destructive" className="border-red-200 bg-red-50">
                   <AlertDescription className="text-red-800">
-                    {error}
+                    {error} {error.includes('Password') || error.includes('Customer ID') ? '' : 'If you forgot your password, click "Forgot Password" below.'}
                   </AlertDescription>
                 </Alert>
               )}

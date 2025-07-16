@@ -8,11 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Shield, ArrowLeft, User, Mail, Lock, Fingerprint } from "lucide-react"
+import { Building2, Shield, ArrowLeft, User, Mail, Lock } from "lucide-react"
 import { AuthRedirect } from "@/components/AuthRedirect"
 import { useAuth } from "@/contexts/AuthContext"
-import { ManualTypingPattern } from "@/components/ManualTypingPattern"
-import { TypingGuide } from "@/components/TypingGuide"
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -29,42 +27,51 @@ export default function SignUpPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [imageUploading, setImageUploading] = useState(false)
-  const [showTypingPattern, setShowTypingPattern] = useState(false)
-  const [typingPattern, setTypingPattern] = useState<{
-    pattern: string
-    quality: number
-    text: string
-  } | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{name?: string, email?: string, customerId?: string, password?: string, confirmPassword?: string}>({});
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     setError("")
     setSuccess("")
+    setFieldErrors(prev => ({ ...prev, [name]: undefined })); // Clear specific field error on input change
   }
 
   const validateForm = () => {
-    if (!formData.name.trim()) return setError("Name is required")
-    if (!formData.email.trim()) return setError("Email is required")
-    if (!formData.customerId.trim()) return setError("Customer ID is required")
-    if (!formData.password.trim()) return setError("Password is required")
-    if (formData.password.length < 6) return setError("Password must be at least 6 characters")
-    if (formData.password !== formData.confirmPassword) return setError("Passwords do not match")
-    return true
-  }
-
-  const handleTypingPatternComplete = (pattern: any) => {
-    setTypingPattern({ 
-      pattern: JSON.stringify(pattern), 
-      quality: pattern.quality || 0.5, 
-      text: pattern.text 
-    })
-    setShowTypingPattern(false)
-    setSuccess("Typing pattern recorded successfully!")
-  }
-
-  const handleTypingPatternError = (error: string) => {
-    setError(`Typing pattern error: ${error}`)
+    const errors: {name?: string, email?: string, customerId?: string, password?: string, confirmPassword?: string} = {};
+    let valid = true;
+    if (!formData.name.trim()) {
+      errors.name = "Name is required";
+      valid = false;
+    }
+    if (!formData.email.trim()) {
+      errors.email = "Email is required";
+      valid = false;
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email.trim())) {
+      errors.email = "Please enter a valid email address";
+      valid = false;
+    }
+    if (!formData.customerId.trim()) {
+      errors.customerId = "Customer ID is required";
+      valid = false;
+    } else if (!/^\d{10}$/.test(formData.customerId.trim())) {
+      errors.customerId = "Customer ID must be exactly 10 digits";
+      valid = false;
+    }
+    if (!formData.password.trim()) {
+      errors.password = "Password is required";
+      valid = false;
+    } else if (formData.password.length < 8) {
+      errors.password = "Password must be at least 8 characters, including a number and a symbol.";
+      valid = false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+      valid = false;
+    }
+    setFieldErrors(errors);
+    if (!valid) setError("Please correct the highlighted fields below.");
+    return valid;
   }
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,7 +113,6 @@ export default function SignUpPage() {
           customerId: formData.customerId,
           password: formData.password,
           profileImage: formData.profileImage,
-          typingPattern: typingPattern,
         }),
       })
       const data = await res.json()
@@ -157,36 +163,42 @@ export default function SignUpPage() {
                 <Label htmlFor="name">Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input id="name" name="name" type="text" placeholder="Your Name" value={formData.name} onChange={handleInputChange} className="pl-10" disabled={isLoading} />
+                  <Input id="name" name="name" type="text" placeholder="Your Name" value={formData.name} onChange={handleInputChange} className={`pl-10 ${fieldErrors.name ? 'border-red-500 ring-red-200' : ''}`} disabled={isLoading} />
                 </div>
+                {fieldErrors.name && <p className="text-xs text-red-600 mt-1">{fieldErrors.name}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input id="email" name="email" type="email" placeholder="you@email.com" value={formData.email} onChange={handleInputChange} className="pl-10" disabled={isLoading} />
+                  <Input id="email" name="email" type="email" placeholder="you@email.com" value={formData.email} onChange={handleInputChange} className={`pl-10 ${fieldErrors.email ? 'border-red-500 ring-red-200' : ''}`} disabled={isLoading} />
                 </div>
+                {fieldErrors.email && <p className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="customerId">Customer ID</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input id="customerId" name="customerId" type="text" placeholder="Choose a Customer ID" value={formData.customerId} onChange={handleInputChange} className="pl-10" disabled={isLoading} />
+                  <Input id="customerId" name="customerId" type="text" placeholder="Choose a Customer ID" value={formData.customerId} onChange={handleInputChange} className={`pl-10 ${fieldErrors.customerId ? 'border-red-500 ring-red-200' : ''}`} disabled={isLoading} />
                 </div>
+                {fieldErrors.customerId && <p className="text-xs text-red-600 mt-1">{fieldErrors.customerId}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input id="password" name="password" type="password" placeholder="Create a password" value={formData.password} onChange={handleInputChange} className="pl-10" disabled={isLoading} />
+                  <Input id="password" name="password" type="password" placeholder="Create a password" value={formData.password} onChange={handleInputChange} className={`pl-10 ${fieldErrors.password ? 'border-red-500 ring-red-200' : ''}`} disabled={isLoading} />
                 </div>
+                {fieldErrors.password && <p className="text-xs text-red-600 mt-1">{fieldErrors.password}</p>}
+                <p className="text-xs text-gray-500 mt-1">Password must be at least 8 characters, including a number and a symbol.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input id="confirmPassword" name="confirmPassword" type="password" placeholder="Re-enter your password" value={formData.confirmPassword} onChange={handleInputChange} className="pl-10" disabled={isLoading} />
+                  <Input id="confirmPassword" name="confirmPassword" type="password" placeholder="Re-enter your password" value={formData.confirmPassword} onChange={handleInputChange} className={`pl-10 ${fieldErrors.confirmPassword ? 'border-red-500 ring-red-200' : ''}`} disabled={isLoading} />
                 </div>
+                {fieldErrors.confirmPassword && <p className="text-xs text-red-600 mt-1">{fieldErrors.confirmPassword}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="profileImage">Profile Image</Label>
@@ -197,51 +209,6 @@ export default function SignUpPage() {
                 )}
               </div>
               
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Fingerprint className="h-4 w-4" />
-                  Typing Pattern (Optional)
-                </Label>
-                <div className="space-y-2">
-                  {!showTypingPattern && !typingPattern && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowTypingPattern(true)}
-                      className="w-full"
-                      disabled={isLoading}
-                    >
-                      <Fingerprint className="h-4 w-4 mr-2" />
-                      Set Up Typing Pattern
-                    </Button>
-                  )}
-                  
-                  {showTypingPattern && (
-                    <>
-                      <TypingGuide className="mb-4" />
-                      <ManualTypingPattern
-                        mode="enroll"
-                        onComplete={handleTypingPatternComplete}
-                        onError={handleTypingPatternError}
-                        placeholder="Type your name and a short sentence to create your unique typing pattern..."
-                        className="mb-4"
-                      />
-                    </>
-                  )}
-                  
-                  {typingPattern && !showTypingPattern && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <Fingerprint className="h-4 w-4" />
-                        <span className="text-sm font-medium">Typing pattern recorded</span>
-                      </div>
-                      <p className="text-xs text-green-600 mt-1">
-                        Quality score: {(typingPattern.quality * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
               {error && (
                 <Alert variant="destructive" className="border-red-200 bg-red-50">
                   <AlertDescription className="text-red-800">{error}</AlertDescription>
