@@ -99,4 +99,27 @@ model CursorData {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("cursor_data")
+}
+
+model modelInput {
+  id                 Int      @id @default(autoincrement())
+  customer_id        String
+  session_id         String
+  device_type        String
+  click_events       Int
+  scroll_events      Int
+  touch_events       Int
+  keyboard_events    Int
+  device_motion      Float
+  time_on_page       Int
+  screen_size        String
+  browser_info       String
+  language           String
+  timezone_offset    Int
+  device_orientation String
+  geolocation_city   String
+  transaction_amount Float
+  transaction_date   DateTime
+  mouse_movement     Int
+  label              Int
 } 
